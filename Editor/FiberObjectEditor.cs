@@ -18,7 +18,6 @@ namespace FiberFramework.Editor
         private const string                             _modelFieldName          = "_model";
         private const string                             _viewFieldName           = "_view";
 
-
         private FiberObjectEditorStyleSheets getStyleSheets
         {
             get
@@ -27,7 +26,7 @@ namespace FiberFramework.Editor
                 return _styleSheets;
             }
         }
-        
+
         private void OnEnable()
         {
             _controllers = GetControllerList();
@@ -40,10 +39,12 @@ namespace FiberFramework.Editor
             serializedObject.Update();
 
             GUILayout.BeginVertical(getStyleSheets.mainContainer);
+
             DrawController();
             DrawConfigurations();
             DrawModel();
             DrawView();
+
 
             GUILayout.EndVertical();
 
@@ -56,6 +57,12 @@ namespace FiberFramework.Editor
             _currentIndex = _fiberObject.HasController ? _controllers.types.IndexOf(_fiberObject.GetControllerType) : 0;
             var newIndex = EditorGUILayout.Popup("", _currentIndex, _controllers.names, getStyleSheets.controllerSelector,
                 GUILayout.Height(40));
+
+            if (_currentIndex != 0)
+            {
+                DrawDescription(_controllers.types[newIndex]);
+            }
+
 
             if (_currentIndex == newIndex) return;
 
@@ -93,6 +100,19 @@ namespace FiberFramework.Editor
         {
             if (!_fiberObject.HasView) return;
             DrawFields(_fiberObject.GetViewType, _viewFieldName, _fiberObject.RefreshView);
+        }
+
+
+        private void DrawDescription(Type targetType)
+        {
+            if (Attribute.GetCustomAttribute(targetType, typeof(ControllerDescription)) is ControllerDescription descriptionAttribute)
+            {
+                EditorGUILayout.BeginVertical(getStyleSheets.fieldsContainer);
+
+                EditorGUILayout.TextArea(descriptionAttribute.Description, getStyleSheets.descriptionTextBox);
+
+                EditorGUILayout.EndVertical();
+            }
         }
 
 
@@ -140,16 +160,31 @@ namespace FiberFramework.Editor
             var type        = typeof(IFiberController);
             var assemblies  = AppDomain.CurrentDomain.GetAssemblies();
             var typesRAW    = new List<Type>();
-            var resultTypes = new List<Type>() { null };
-            var resultNames = new List<string>() { "Select Controller" };
+            var resultTypes = new List<Type>();
+            var resultNames = new List<string>();
 
             foreach (var x in assemblies)
             {
                 typesRAW.AddRange(x.GetTypes());
             }
 
-            resultTypes.AddRange(typesRAW.Where(t => type.IsAssignableFrom(t) && t != type && !t.IsGenericType && t != typeof(FiberController.Single)));
-            resultNames.AddRange(resultTypes.Where(x => x != null).Select(t => ObjectNames.NicifyVariableName(t.Name)));
+            resultTypes.AddRange(typesRAW.Where(t => type.IsAssignableFrom(t)                                          &&
+                                                     t != type                                                         &&
+                                                     !t.IsGenericType                                                  &&
+                                                     Attribute.GetCustomAttribute(t, typeof(HiddenController)) == null &&
+                                                     t                                                         != typeof(FiberController.Single)));
+
+            resultTypes = resultTypes.Where(x => x != null).OrderBy(x => x.Name).ToList();
+
+            resultNames.AddRange(resultTypes.Select(t =>
+            {
+                var nameAttribute = Attribute.GetCustomAttribute(t, typeof(ControllerName));
+
+                return nameAttribute == null ? ObjectNames.NicifyVariableName(t.Name) : ((ControllerName)nameAttribute).CustomName;
+            }));
+
+            resultTypes.Insert(0, null);
+            resultNames.Insert(0, "Select Controller");
 
             return (resultTypes, resultNames.ToArray());
         }
@@ -178,6 +213,7 @@ namespace FiberFramework.Editor
         public readonly GUIStyle fieldsContainerDetails;
         public readonly GUIStyle fieldsContainer;
         public readonly GUIStyle fieldsContainerFields;
+        public readonly GUIStyle descriptionTextBox;
 
         public FiberObjectEditorStyleSheets()
         {
@@ -199,7 +235,7 @@ namespace FiberFramework.Editor
 
             gradient.SetKeys(colorKey, alphaKey);
 
-            controllerSelector = new GUIStyle
+            controllerSelector = new GUIStyle(EditorStyles.popup)
             {
                 fixedHeight = 40,
                 fontStyle   = FontStyle.Bold,
@@ -252,6 +288,20 @@ namespace FiberFramework.Editor
             fieldsContainerFields = new GUIStyle
             {
                 margin = new RectOffset(10, 0, 0, 0),
+            };
+
+            descriptionTextBox = new GUIStyle(EditorStyles.inspectorFullWidthMargins)
+            {
+                normal =
+                {
+                    background = GenerateColorTexture(1, 1, new Color(0.1f, 0.1f, 0.1f, 0.2f)),
+                    textColor  = Color.gray
+                },
+                fontSize  = 11,
+                alignment = TextAnchor.MiddleCenter,
+                richText  = true,
+                wordWrap  = true,
+                padding   = new RectOffset(12, 12, 12, 12)
             };
         }
 

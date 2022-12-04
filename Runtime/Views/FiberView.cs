@@ -17,15 +17,9 @@ namespace FiberFramework
         public    Action        OnDestroy;
 
 
-        internal void Construct(MonoBehaviour root)
-        {
-            _rootObject = root;
-        }
-
         internal void Initialize(MonoBehaviour root)
         {
-            Construct(root);
-            OnInitialized();
+            _rootObject = root;
         }
 
         public void DontDestroyOnLoad()
@@ -43,6 +37,5 @@ namespace FiberFramework
             OnDestroy?.Invoke();
         }
 
-        protected abstract void OnInitialized();
     }
 }

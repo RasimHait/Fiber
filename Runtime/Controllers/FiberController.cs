@@ -1,25 +1,25 @@
-﻿using UnityEngine;
+﻿using Object = UnityEngine.Object;
 
 namespace FiberFramework
 {
     public sealed class FiberController
     {
-        public abstract class Default<TModel, TView> : IFiberController where TModel : FiberModel where TView : FiberView
+        private sealed class FiberControllerBehaviour<M, V> where M : FiberModel where V : FiberView
         {
-            public TModel                        Model  { get; private set; }
-            public TView                         View   { get; private set; }
-            public FiberControllerConfigurations Config { get; private set; }
+            private IFiberController              _controller;
+            private FiberControllerConfigurations _config;
 
-
-            public void Initialize(FiberModel targetModel, FiberView targetView, FiberControllerConfigurations configurations)
+            public M Model { get; private set; }
+            public V View  { get; private set; }
+            
+            public void Initialize(IFiberController rootController, FiberControllerConfigurations configurations)
             {
-                Model  = (TModel)targetModel;
-                View   = (TView)targetView;
-                Config = configurations;
+                _controller = rootController;
+                _config     = configurations;
 
                 if (View != null)
                 {
-                    if (Config.DestroyOnLoad)
+                    if (_config.DestroyOnLoad)
                     {
                         View.DontDestroyOnLoad();
                     }
@@ -27,19 +27,22 @@ namespace FiberFramework
                     View.OnDestroy += Destroy;
                 }
 
-                Fiber.Register(this);
-                OnInitialized();
+                Fiber.Register(_controller);
             }
 
-            public void SetReady()
+            public void SetModel<T>(T model) where T : FiberModel
             {
-                OnReady();
+                Model = model as M;
+            }
+
+            public void SetView<T>(T view) where T : FiberView
+            {
+                View = view as V;
             }
 
             private void DestroySelf()
             {
-                OnDestroy();
-                Fiber.UnRegister(this);
+                Fiber.UnRegister(_controller);
             }
 
             private void DestroyView()
@@ -57,36 +60,137 @@ namespace FiberFramework
                 DestroySelf();
                 DestroyView();
             }
+        }
 
-            bool IFiberController.TryGetModel<T>(out T model)
+
+        public abstract class Default<TModel, TView> : IFiberController, IModelContainer, IViewContainer where TModel : FiberModel, new() where TView : FiberView, new()
+        {
+            private readonly FiberControllerBehaviour<TModel, TView> _coreController;
+
+            public TModel Model => _coreController.Model;
+            public TView  View  => _coreController.View;
+
+            public Default()
             {
-                model = Model as T;
-                return Model is T;
+                _coreController = new FiberControllerBehaviour<TModel, TView>();
             }
 
-            bool IFiberController.TryGetView<T>(out T view)
+            public void Initialize(FiberControllerConfigurations configurations)
             {
-                view = View as T;
-                return View is T;
+                _coreController.Initialize(this, configurations);
             }
 
-            protected abstract void OnInitialized();
+            public void SetModel<T>(T model) where T : FiberModel
+            {
+                _coreController.SetModel(model);
+            }
 
-            protected abstract void OnReady();
+            public void SetView<T>(T view) where T : FiberView
+            {
+                _coreController.SetView(view);
+            }
 
-            protected abstract void OnDestroy();
+            public void Destroy()
+            {
+                _coreController.Destroy();
+            }
+
+            FiberModel IModelContainer.GetModel()
+            {
+                return Model;
+            }
+
+            FiberView IViewContainer.GetView()
+            {
+                return View;
+            }
         }
 
-        public abstract class NoView<TModel> : Default<TModel, FiberView> where TModel : FiberModel
+
+        public abstract class NoView<TModel> : IFiberController, IModelContainer where TModel : FiberModel, new()
         {
+            private readonly FiberControllerBehaviour<TModel, FiberView> _coreController;
+
+            public TModel Model => _coreController.Model;
+
+            public NoView()
+            {
+                _coreController = new FiberControllerBehaviour<TModel, FiberView>();
+            }
+
+            public void Initialize(FiberControllerConfigurations configurations)
+            {
+                _coreController.Initialize(this, configurations);
+            }
+
+            public void SetModel<T>(T model) where T : FiberModel
+            {
+                _coreController.SetModel(model);
+            }
+
+            public void Destroy()
+            {
+                _coreController.Destroy();
+            }
+
+            FiberModel IModelContainer.GetModel()
+            {
+                return Model;
+            }
         }
 
-        public abstract class NoModel<TView> : Default<FiberModel, TView> where TView : FiberView
+
+        public abstract class NoModel<TView> : IFiberController, IViewContainer where TView : FiberView, new()
         {
+            private readonly FiberControllerBehaviour<FiberModel, TView> _coreController;
+
+            public TView View => _coreController.View;
+
+            public NoModel()
+            {
+                _coreController = new FiberControllerBehaviour<FiberModel, TView>();
+            }
+
+            public void Initialize(FiberControllerConfigurations configurations)
+            {
+                _coreController.Initialize(this, configurations);
+            }
+
+            public void SetView<T>(T view) where T : FiberView
+            {
+                _coreController.SetView(view);
+            }
+
+            public void Destroy()
+            {
+                _coreController.Destroy();
+            }
+
+            FiberView IViewContainer.GetView()
+            {
+                return View;
+            }
         }
 
-        public abstract class Single : Default<FiberModel, FiberView>
+
+        public abstract class Single : IFiberController
         {
+            private readonly FiberControllerBehaviour<FiberModel, FiberView> _coreController;
+
+            public Single()
+            {
+                _coreController = new FiberControllerBehaviour<FiberModel, FiberView>();
+            }
+
+            public void Initialize(FiberControllerConfigurations configurations)
+            {
+                _coreController.Initialize(this, configurations);
+            }
+
+            public void Destroy()
+            {
+                _coreController.Destroy();
+            }
         }
     }
 }

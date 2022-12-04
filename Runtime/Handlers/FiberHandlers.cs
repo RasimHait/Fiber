@@ -25,6 +25,12 @@ namespace FiberFramework
     }
 
     /// <summary> Executes on View </summary>
+    public interface IStartHandler : IFiberHandler
+    {
+        void Start();
+    }
+    
+    /// <summary> Executes on View </summary>
     public interface IEnableHandler : IFiberHandler
     {
         void OnEnable();

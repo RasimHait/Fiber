@@ -14,18 +14,19 @@ namespace FiberFramework
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
-            if (_initialized) return;
-
-            Application.quitting += Clear;
-            PrepareBridge();
+            if (!_initialized)
+            {
+                Application.quitting += Clear;
+                PrepareBridge();
+            }
         }
 
 
         private static void Clear()
         {
-            _initialized          =  false;
-            _monoBridge           =  null;
-            _containers           =  new Dictionary<Type, FiberControllerContainer>();
+            _initialized         =  false;
+            _monoBridge          =  null;
+            _containers          =  new Dictionary<Type, FiberControllerContainer>();
             Application.quitting -= Clear;
         }
 
@@ -41,7 +42,60 @@ namespace FiberFramework
 
         public static void Register<T>(T controller) where T : IFiberController
         {
-            var type = controller.GetType();
+            var targetContainer = GetOrCreateContainer<T>();
+
+            if (!targetContainer.Contains(controller))
+            {
+                targetContainer.AddController(controller);
+
+                OperateHandlers(controller, HandlerStorageOperation.Store);
+            }
+        }
+
+
+        public static void UnRegister<T>(T controller) where T : IFiberController
+        {
+            var targetContainer = GetOrCreateContainer<T>();
+
+            if (targetContainer.Contains(controller))
+            {
+                targetContainer.RemoveController(controller);
+
+                OperateHandlers(controller, HandlerStorageOperation.Purge);
+            }
+        }
+
+
+        private static void OperateHandlers(IFiberController controller, HandlerStorageOperation operation)
+        {
+            switch (operation)
+            {
+                case HandlerStorageOperation.Store:
+                    _monoBridge.StoreHandlers(controller);
+                    break;
+                case HandlerStorageOperation.Purge:
+                    _monoBridge.PurgeHandlers(controller);
+                    break;
+            }
+
+            if (controller is IViewContainer viewContainer)
+            {
+                switch (operation)
+                {
+                    case HandlerStorageOperation.Store:
+                        _monoBridge.StoreHandlers(viewContainer.GetView());
+                        break;
+                    case HandlerStorageOperation.Purge:
+                        _monoBridge.PurgeHandlers(viewContainer.GetView());
+                        break;
+                }
+            }
+        }
+
+
+        private static FiberControllerContainer GetOrCreateContainer<T>()
+        {
+            var type = typeof(T);
 
             if (!_containers.ContainsKey(type))
             {
@@ -49,39 +103,7 @@ namespace FiberFramework
                 _containers.Add(type, container);
             }
 
-            var targetContainer = _containers[type];
-
-            if (targetContainer.Contains(controller)) return;
-
-            targetContainer.AddController(controller);
-
-            _monoBridge.StoreHandlers(controller);
-
-            if (controller.TryGetView(out FiberView view))
-            {
-                _monoBridge.StoreHandlers(view);
-            }
-        }
-
-
-        public static void UnRegister<T>(T controller) where T : IFiberController
-        {
-            var type = controller.GetType();
-
-            if (!_containers.ContainsKey(type)) return;
-
-            var targetContainer = _containers[type];
-
-            if (!targetContainer.Contains(controller)) return;
-
-            targetContainer.RemoveController(controller);
-
-            _monoBridge.PurgeHandlers(controller);
-
-            if (controller.TryGetView(out FiberView view))
-            {
-                _monoBridge.PurgeHandlers(view);
-            }
+            return _containers[type];
         }
 
 
@@ -133,6 +155,13 @@ namespace FiberFramework
 
             result = default;
             return false;
+        }
+
+
+        private enum HandlerStorageOperation
+        {
+            Store,
+            Purge
         }
     }
 }

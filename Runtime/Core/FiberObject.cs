@@ -50,13 +50,27 @@ namespace FiberFramework
 
         public bool TryGetModel<T>(out T result) where T : FiberModel
         {
-            return _controller.TryGetModel(out result);
+            if (_controller is IModelContainer modelContainer)
+            {
+                result = modelContainer.GetModel() as T;
+                return true;
+            }
+
+            result = default;
+            return false;
         }
 
 
         public bool TryGetView<T>(out T result) where T : FiberView
         {
-            return _controller.TryGetView(out result);
+            if (_controller is IViewContainer viewContainer)
+            {
+                result = viewContainer.GetView() as T;
+                return true;
+            }
+
+            result = default;
+            return false;
         }
 
 
@@ -84,7 +98,7 @@ namespace FiberFramework
                 {
                     _view = (FiberView)Activator.CreateInstance(viewType);
 
-                    _view.Construct(this);
+                    _view.Initialize(this);
 
                     StoreHandlers(_view);
                 }
@@ -105,26 +119,28 @@ namespace FiberFramework
         {
             if (_controller != null)
             {
-                _view.Initialize(this);
-
-
-                _model?.OnInitialize();
-                _controller?.Initialize(_model, _view, _configurations);
-
-                if (_view != null)
+                if (_controller is IModelContainer modelContainer)
                 {
-                    StoreHandlers(_controller, _view);
-                    return;
+                    _model?.OnInitialize();
+                    modelContainer.SetModel(_model);
                 }
+                
+                if (_controller is IViewContainer viewContainer)
+                {
+                    _view?.Initialize(this);
+                    viewContainer.SetView(_view);
+                }
+                
+                _controller?.Initialize(_configurations);
 
-                StoreHandlers(_controller);
+                StoreHandlers(_controller, _view);
             }
         }
 
 
         private void Start()
         {
-            _controller?.SetReady();
+            _handlers.ForEach(x => (x as IStartHandler)?.Start());
         }
 
 
@@ -136,6 +152,7 @@ namespace FiberFramework
             {
                 if (obj == null) continue;
 
+                RegisterHandler<IStartHandler>(obj);
                 RegisterHandler<IEnableHandler>(obj);
                 RegisterHandler<IDisableHandler>(obj);
                 RegisterHandler<IMouseDownHandler>(obj);
