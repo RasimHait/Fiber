@@ -58,12 +58,11 @@ namespace FiberFramework.Editor
             var newIndex = EditorGUILayout.Popup("", _currentIndex, _controllers.names, getStyleSheets.controllerSelector,
                 GUILayout.Height(40));
 
-            if (_currentIndex != 0)
+            if (newIndex != 0)
             {
                 DrawDescription(_controllers.types[newIndex]);
             }
-
-
+            
             if (_currentIndex == newIndex) return;
 
             if (newIndex == 0)
