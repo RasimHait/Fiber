@@ -1,6 +1,4 @@
-﻿using Object = UnityEngine.Object;
-
-namespace FiberFramework
+﻿namespace FiberFramework
 {
     public sealed class FiberController
     {
@@ -11,7 +9,7 @@ namespace FiberFramework
 
             public M Model { get; private set; }
             public V View  { get; private set; }
-            
+
             public void Initialize(IFiberController rootController, FiberControllerConfigurations configurations)
             {
                 _controller = rootController;
@@ -47,11 +45,10 @@ namespace FiberFramework
 
             private void DestroyView()
             {
-                if (View != default)
+                if (View != null)
                 {
                     View.OnDestroy -= Destroy;
                     View.Destroy();
-                    Object.Destroy(View.GameObject);
                 }
             }
 

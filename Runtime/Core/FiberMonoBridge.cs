@@ -1,53 +1,72 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace FiberFramework
 {
     [AddComponentMenu("")]
-    internal class FiberMonoBridge : MonoBehaviour
+    internal sealed class FiberMonoBridge : MonoBehaviour
     {
-        private readonly List<IUpdateHandler>      _updateHandlers      = new List<IUpdateHandler>();
-        private readonly List<IFixedUpdateHandler> _fixedUpdateHandlers = new List<IFixedUpdateHandler>();
-        private readonly List<ILateUpdateHandler>  _lateUpdateHandlers  = new List<ILateUpdateHandler>();
+        private readonly List<IFiberHandler> _handlers = new();
 
 
-        public void StoreHandlers(object handler)
+        public void StoreHandlers(object target)
         {
-            _updateHandlers.Add(handler as IUpdateHandler);
-            _fixedUpdateHandlers.Add(handler as IFixedUpdateHandler);
-            _lateUpdateHandlers.Add(handler as ILateUpdateHandler);
+            AddHandlers(target);
         }
 
-        public void PurgeHandlers(object handler)
+
+        public void PurgeHandlers(object target)
         {
-            _updateHandlers.Remove(handler as IUpdateHandler);
-            _fixedUpdateHandlers.Remove(handler as IFixedUpdateHandler);
-            _lateUpdateHandlers.Remove(handler as ILateUpdateHandler);
+            RemoveHandlers(target);
         }
 
-        private void Update()
+
+        private void AddHandlers(params object[] objects)
         {
-            foreach (var handler in _updateHandlers)
+            foreach (var obj in objects)
             {
-                handler?.Update();
+                if (obj == null) continue;
+
+                RegisterHandler<IUpdateHandler>(obj);
+                RegisterHandler<IFixedUpdateHandler>(obj);
+                RegisterHandler<ILateUpdateHandler>(obj);
             }
         }
 
-        private void FixedUpdate()
+
+        private void RemoveHandlers(params object[] objects)
         {
-            foreach (var handler in _fixedUpdateHandlers)
+            foreach (var obj in objects)
             {
-                handler?.FixedUpdate();
+                if (obj == null) continue;
+
+                UnregisterHandler<IUpdateHandler>(obj);
+                UnregisterHandler<IFixedUpdateHandler>(obj);
+                UnregisterHandler<ILateUpdateHandler>(obj);
             }
         }
 
-        private void LateUpdate()
+
+        private void RegisterHandler<T>(object target) where T : IFiberHandler
         {
-            foreach (var handler in _lateUpdateHandlers)
+            if (target is T handler && !_handlers.Contains(handler))
             {
-                handler?.LateUpdate();
+                _handlers.Add(handler);
             }
         }
+
+
+        private void UnregisterHandler<T>(object target) where T : IFiberHandler
+        {
+            if (target is T handler && _handlers.Contains(handler))
+            {
+                _handlers.Remove(handler);
+            }
+        }
+
+
+        private void Update()      => _handlers.ForEach(x => (x as IUpdateHandler)?.Update());
+        private void FixedUpdate() => _handlers.ForEach(x => (x as IFixedUpdateHandler)?.FixedUpdate());
+        private void LateUpdate()  => _handlers.ForEach(x => (x as ILateUpdateHandler)?.LateUpdate());
     }
 }

@@ -90,6 +90,19 @@ namespace FiberFramework
                         break;
                 }
             }
+            
+            if (controller is IModelContainer modelContainer)
+            {
+                switch (operation)
+                {
+                    case HandlerStorageOperation.Store:
+                        _monoBridge.StoreHandlers(modelContainer.GetModel());
+                        break;
+                    case HandlerStorageOperation.Purge:
+                        _monoBridge.PurgeHandlers(modelContainer.GetModel());
+                        break;
+                }
+            }
         }
 
 

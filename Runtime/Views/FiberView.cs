@@ -10,32 +10,32 @@ namespace FiberFramework
     {
         [SerializeReference]
         private MonoBehaviour _rootObject;
-
-        protected MonoBehaviour viewRoot   => _rootObject;
-        public    GameObject    GameObject => _rootObject.gameObject;
-        public    Transform     Transform  => _rootObject.transform;
-        public    Action        OnDestroy;
+        protected MonoBehaviour root => _rootObject;
+        internal  Action        OnDestroy;
 
 
-        internal void Initialize(MonoBehaviour root)
+        internal void Initialize(MonoBehaviour rootMonoBehaviour)
         {
-            _rootObject = root;
+            _rootObject = rootMonoBehaviour;
         }
+
 
         public void DontDestroyOnLoad()
         {
-            Object.DontDestroyOnLoad(viewRoot.gameObject);
+            Object.DontDestroyOnLoad(root.gameObject);
         }
+
 
         public void KeepDestroyOnLoad()
         {
-            SceneManager.MoveGameObjectToScene(viewRoot.gameObject, SceneManager.GetActiveScene());
+            SceneManager.MoveGameObjectToScene(root.gameObject, SceneManager.GetActiveScene());
         }
+
 
         public void Destroy()
         {
             OnDestroy?.Invoke();
+            Object.Destroy(_rootObject.gameObject);
         }
-
     }
 }

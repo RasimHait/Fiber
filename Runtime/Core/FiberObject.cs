@@ -31,7 +31,13 @@ namespace FiberFramework
             RefreshModel();
             RefreshView();
 
-            StoreHandlers(_controller, _view);
+            UpdateHandlers();
+        }
+
+
+        private void UpdateHandlers()
+        {
+            StoreHandlers(_controller, _view, _model);
         }
 
 
@@ -82,7 +88,8 @@ namespace FiberFramework
 
                 if (modelType?.GetConstructor(Type.EmptyTypes) != null)
                 {
-                    _model = (FiberModel)Activator.CreateInstance(modelType);
+                    var model = (FiberModel)Activator.CreateInstance(modelType);
+                    SetModel(model);
                 }
             }
         }
@@ -96,11 +103,8 @@ namespace FiberFramework
 
                 if (viewType?.GetConstructor(Type.EmptyTypes) != null)
                 {
-                    _view = (FiberView)Activator.CreateInstance(viewType);
-
-                    _view.Initialize(this);
-
-                    StoreHandlers(_view);
+                    var view = (FiberView)Activator.CreateInstance(viewType);
+                    SetView(view);
                 }
             }
         }
@@ -110,10 +114,29 @@ namespace FiberFramework
         {
             if (_controller != null)
             {
-                _configurations = (FiberControllerConfigurations)Activator.CreateInstance(typeof(FiberControllerConfigurations));
+                var config = (FiberControllerConfigurations)Activator.CreateInstance(typeof(FiberControllerConfigurations));
+                SetConfigurations(config);
             }
         }
 
+
+        private void SetModel(object value)
+        {
+            _model = (FiberModel)value;
+        }
+
+
+        private void SetView(object value)
+        {
+            _view = (FiberView)value;
+            _view.Initialize(this);
+        }
+
+
+        private void SetConfigurations(object value)
+        {
+            _configurations = (FiberControllerConfigurations)value;
+        }
 
         private void Awake()
         {
@@ -124,16 +147,16 @@ namespace FiberFramework
                     _model?.OnInitialize();
                     modelContainer.SetModel(_model);
                 }
-                
+
                 if (_controller is IViewContainer viewContainer)
                 {
                     _view?.Initialize(this);
                     viewContainer.SetView(_view);
                 }
-                
+
                 _controller?.Initialize(_configurations);
 
-                StoreHandlers(_controller, _view);
+                UpdateHandlers();
             }
         }
 
@@ -190,28 +213,28 @@ namespace FiberFramework
         }
 
 
-        private void OnEnable()                                    => _handlers.ForEach(x => (x as IEnableHandler)?.OnEnable());
-        private void OnDisable()                                   => _handlers.ForEach(x => (x as IDisableHandler)?.OnDisable());
-        private void OnMouseDown()                                 => _handlers.ForEach(x => (x as IMouseDownHandler)?.OnMouseDown());
-        private void OnMouseDrag()                                 => _handlers.ForEach(x => (x as IMouseDragHandler)?.OnMouseDrag());
-        private void OnMouseEnter()                                => _handlers.ForEach(x => (x as IMouseEnterHandler)?.OnMouseEnter());
-        private void OnMouseExit()                                 => _handlers.ForEach(x => (x as IMouseExitHandler)?.OnMouseExit());
-        private void OnMouseOver()                                 => _handlers.ForEach(x => (x as IMouseOverHandler)?.OnMouseOver());
-        private void OnMouseUp()                                   => _handlers.ForEach(x => (x as IMouseUpHandler)?.OnMouseUp());
-        private void OnBecameInvisible()                           => _handlers.ForEach(x => (x as IBecameInvisibleHandler)?.OnBecameInvisible());
-        private void OnBecameVisible()                             => _handlers.ForEach(x => (x as IBecameVisibleHandler)?.OnBecameVisible());
-        private void OnTriggerEnter(Collider        other)         => _handlers.ForEach(x => (x as ITriggerEnterHandler)?.OnTriggerEnter(other));
-        private void OnTriggerExit(Collider         other)         => _handlers.ForEach(x => (x as ITriggerExitHandler)?.OnTriggerExit(other));
-        private void OnTriggerStay(Collider         other)         => _handlers.ForEach(x => (x as ITriggerStayHandler)?.OnTriggerStay(other));
-        private void OnTriggerEnter2D(Collider2D    col)           => _handlers.ForEach(x => (x as ITriggerEnter2DHandler)?.OnTriggerEnter2D(col));
-        private void OnTriggerExit2D(Collider2D     other)         => _handlers.ForEach(x => (x as ITriggerExit2DHandler)?.OnTriggerExit2D(other));
-        private void OnTriggerStay2D(Collider2D     other)         => _handlers.ForEach(x => (x as ITriggerStay2DHandler)?.OnTriggerStay2D(other));
-        private void OnCollisionEnter(Collision     collision)     => _handlers.ForEach(x => (x as ICollisionEnterHandler)?.OnCollisionEnter(collision));
-        private void OnCollisionExit(Collision      other)         => _handlers.ForEach(x => (x as ICollisionExitHandler)?.OnCollisionExit(other));
-        private void OnCollisionStay(Collision      collisionInfo) => _handlers.ForEach(x => (x as ICollisionStayHandler)?.OnCollisionStay(collisionInfo));
-        private void OnCollisionEnter2D(Collision2D col)           => _handlers.ForEach(x => (x as ICollisionEnter2DHandler)?.OnCollisionEnter2D(col));
-        private void OnCollisionExit2D(Collision2D  other)         => _handlers.ForEach(x => (x as ICollisionExit2DHandler)?.OnCollisionExit2D(other));
-        private void OnCollisionStay2D(Collision2D  collision)     => _handlers.ForEach(x => (x as ICollisionStay2DHandler)?.OnCollisionStay2D(collision));
+        private void OnEnable()                               => _handlers.ForEach(x => (x as IEnableHandler)?.OnEnable());
+        private void OnDisable()                              => _handlers.ForEach(x => (x as IDisableHandler)?.OnDisable());
+        private void OnMouseDown()                            => _handlers.ForEach(x => (x as IMouseDownHandler)?.OnMouseDown());
+        private void OnMouseDrag()                            => _handlers.ForEach(x => (x as IMouseDragHandler)?.OnMouseDrag());
+        private void OnMouseEnter()                           => _handlers.ForEach(x => (x as IMouseEnterHandler)?.OnMouseEnter());
+        private void OnMouseExit()                            => _handlers.ForEach(x => (x as IMouseExitHandler)?.OnMouseExit());
+        private void OnMouseOver()                            => _handlers.ForEach(x => (x as IMouseOverHandler)?.OnMouseOver());
+        private void OnMouseUp()                              => _handlers.ForEach(x => (x as IMouseUpHandler)?.OnMouseUp());
+        private void OnBecameInvisible()                      => _handlers.ForEach(x => (x as IBecameInvisibleHandler)?.OnBecameInvisible());
+        private void OnBecameVisible()                        => _handlers.ForEach(x => (x as IBecameVisibleHandler)?.OnBecameVisible());
+        private void OnTriggerEnter(Collider other)           => _handlers.ForEach(x => (x as ITriggerEnterHandler)?.OnTriggerEnter(other));
+        private void OnTriggerExit(Collider other)            => _handlers.ForEach(x => (x as ITriggerExitHandler)?.OnTriggerExit(other));
+        private void OnTriggerStay(Collider other)            => _handlers.ForEach(x => (x as ITriggerStayHandler)?.OnTriggerStay(other));
+        private void OnTriggerEnter2D(Collider2D col)         => _handlers.ForEach(x => (x as ITriggerEnter2DHandler)?.OnTriggerEnter2D(col));
+        private void OnTriggerExit2D(Collider2D other)        => _handlers.ForEach(x => (x as ITriggerExit2DHandler)?.OnTriggerExit2D(other));
+        private void OnTriggerStay2D(Collider2D other)        => _handlers.ForEach(x => (x as ITriggerStay2DHandler)?.OnTriggerStay2D(other));
+        private void OnCollisionEnter(Collision collision)    => _handlers.ForEach(x => (x as ICollisionEnterHandler)?.OnCollisionEnter(collision));
+        private void OnCollisionExit(Collision other)         => _handlers.ForEach(x => (x as ICollisionExitHandler)?.OnCollisionExit(other));
+        private void OnCollisionStay(Collision collisionInfo) => _handlers.ForEach(x => (x as ICollisionStayHandler)?.OnCollisionStay(collisionInfo));
+        private void OnCollisionEnter2D(Collision2D col)      => _handlers.ForEach(x => (x as ICollisionEnter2DHandler)?.OnCollisionEnter2D(col));
+        private void OnCollisionExit2D(Collision2D other)     => _handlers.ForEach(x => (x as ICollisionExit2DHandler)?.OnCollisionExit2D(other));
+        private void OnCollisionStay2D(Collision2D collision) => _handlers.ForEach(x => (x as ICollisionStay2DHandler)?.OnCollisionStay2D(collision));
 
 #if UNITY_EDITOR
         private void OnDrawGizmos() => _handlers.ForEach(x => (x as IDrawGizmosHandler)?.OnDrawGizmos());
