@@ -15,7 +15,9 @@ namespace FiberFramework.Editor
         private       int                                _currentIndex;
         private       FiberObjectEditorStyleSheets       _styleSheets;
         private       Rect                               _contentRect;
-        private       DrawFieldsOptions                  _nextDrawFieldsOptions;
+        private       BlockData                          _controllerData;
+        private       BlockData                          _modelData;
+        private       BlockData                          _viewData;
         private const string                             _configurationsFieldName = "_configurations";
         private const string                             _controllerFieldName     = "_controller";
         private const string                             _modelFieldName          = "_model";
@@ -25,9 +27,10 @@ namespace FiberFramework.Editor
 
         private void OnEnable()
         {
-            _fiberObject           = target as FiberObject;
-            _nextDrawFieldsOptions = new DrawFieldsOptions();
-            _controllers           = FiberEditorTools.GetControllerList();
+            _fiberObject  = target as FiberObject;
+            _controllers  = FiberEditorTools.GetControllerList();
+            _currentIndex = _fiberObject!.HasController ? _controllers.types.IndexOf(_fiberObject.GetControllerType) : 0;
+            FillData();
         }
 
 
@@ -41,7 +44,7 @@ namespace FiberFramework.Editor
             DrawContent();
             GUILayout.EndArea();
 
-            EditorGUILayout.Space(-1);
+            EditorGUILayout.Space(0);
             EditorGUILayout.EndVertical();
 
             Repaint();
@@ -59,7 +62,6 @@ namespace FiberFramework.Editor
             DrawModel();
             DrawView();
 
-
             EditorGUILayout.EndVertical();
 
             if (targetRect != default)
@@ -73,24 +75,17 @@ namespace FiberFramework.Editor
 
         private void DrawController()
         {
-            _currentIndex = _fiberObject.HasController ? _controllers.types.IndexOf(_fiberObject.GetControllerType) : 0;
-
             if (GUILayout.Button(_controllers.names[_currentIndex], getStyleSheets.controllerSelector, GUILayout.Width(Screen.width)))
             {
                 PopupWindow.Show(new Rect(0, 0, 0, 40), new FiberObjectEditorListMenu(Screen.width, _controllers, OnSelectController, getStyleSheets));
             }
 
-            DrawDescription(_controllers.types[_currentIndex]);
-        }
-
-
-        private void DrawDescription(Type targetType)
-        {
-            if (targetType != null && FiberEditorTools.TryGetDescription(targetType, out var description))
+            if (_controllerData.information != default)
             {
-                EditorGUILayout.LabelField(description, getStyleSheets.descriptionTextBox);
+                EditorGUILayout.LabelField(_controllerData.information, getStyleSheets.descriptionTextBox);
             }
         }
+
 
         private void OnSelectController(int controllerID)
         {
@@ -107,6 +102,8 @@ namespace FiberFramework.Editor
             var targetType = _controllers.types[controllerID];
             _fiberObject.Construct(targetType);
 
+            FillData();
+
             EditorUtility.SetDirty(target);
             GC.Collect();
         }
@@ -115,100 +112,55 @@ namespace FiberFramework.Editor
         private void DrawConfigurations()
         {
             if (!_fiberObject.HasController) return;
-
-            ModifyDrawFieldOptions(typeof(FiberControllerConfigurations), _configurationsFieldName, "Controller");
-            var controller = FiberEditorTools.GetFieldValue(_fiberObject, _controllerFieldName);
-
-            _nextDrawFieldsOptions.contextMenuEditTarget = controller;
-            _nextDrawFieldsOptions.infoSource            = _fiberObject.GetControllerType;
-
-            DrawPropertyFields(_nextDrawFieldsOptions);
+            DrawPropertyFields(_controllerData);
         }
 
 
         private void DrawModel()
         {
             if (!_fiberObject.HasModel) return;
-
-            ModifyDrawFieldOptions(_fiberObject.GetModelType, _modelFieldName, "Model");
-
-            DrawPropertyFields(_nextDrawFieldsOptions);
+            DrawPropertyFields(_modelData);
         }
 
 
         private void DrawView()
         {
             if (!_fiberObject.HasView) return;
-
-            ModifyDrawFieldOptions(_fiberObject.GetViewType, _viewFieldName, "View");
-
-            DrawPropertyFields(_nextDrawFieldsOptions);
+            DrawPropertyFields(_viewData);
         }
 
 
-        private void ModifyDrawFieldOptions(Type targetType, string fieldName, string title)
-        {
-            var fieldValue = FiberEditorTools.GetFieldValue(_fiberObject, _viewFieldName);
-
-            _nextDrawFieldsOptions.rootPropertyType       = targetType;
-            _nextDrawFieldsOptions.rootPropertyName       = fieldName;
-            _nextDrawFieldsOptions.contextMenuResetTarget = fieldValue;
-            _nextDrawFieldsOptions.contextMenuCopyTarget  = fieldValue;
-            _nextDrawFieldsOptions.contextMenuEditTarget  = fieldValue;
-            _nextDrawFieldsOptions.infoSource             = targetType;
-            _nextDrawFieldsOptions.headerTitle            = title;
-        }
-
-
-        private void DrawInfoBlock(Type targetType)
+        private void DrawInfoBlock(BlockData data)
         {
             EditorGUILayout.BeginHorizontal(getStyleSheets.infoBlock);
 
-            var handlers       = FiberEditorTools.GetHandlers(targetType);
-            var handlersString = handlers.Length > 0 ? "" : "No Handlers";
-
-            foreach (var handler in handlers)
-            {
-                var targetName = handler.Name;
-
-                targetName = targetName.Replace('I', default);
-                targetName = targetName.Replace("Handler", default);
-
-                handlersString += targetName;
-
-                if (handler != handlers.Last())
-                {
-                    handlersString += ", ";
-                }
-            }
-
             var width = (_contentRect.width / 2) - 13;
 
-            EditorGUILayout.LabelField($"<color=grey>{targetType.Name}</color>", getStyleSheets.infoBlockLeftLine, GUILayout.Width(width));
-            EditorGUILayout.LabelField($"<color=#89D679>{handlersString}</color>", getStyleSheets.infoBlockRightLine, GUILayout.Width(width));
+            EditorGUILayout.LabelField($"<color=grey>{data.targetObjectToEdit.GetType().Name}</color>", getStyleSheets.infoBlockLeftLine, GUILayout.Width(width));
+            EditorGUILayout.LabelField($"<color=#89D679>{data.handlers}</color>", getStyleSheets.infoBlockRightLine, GUILayout.Width(width));
 
             EditorGUILayout.EndHorizontal();
         }
 
 
-        private void DrawPropertyFields(DrawFieldsOptions options)
+        private void DrawPropertyFields(BlockData data)
         {
-            var property = serializedObject.FindProperty(options.rootPropertyName);
-            var fields   = FiberEditorTools.GetFields(options.rootPropertyType);
+            var property = serializedObject.FindProperty(data.targetField);
 
-            DrawPropertyBlockHeader(options.contextMenuCopyTarget, options.contextMenuResetTarget, options.contextMenuEditTarget, options.headerTitle);
-            DrawInfoBlock(options.infoSource);
+            DrawPropertyBlockHeader(data);
+            DrawInfoBlock(data);
 
             EditorGUILayout.BeginVertical(getStyleSheets.fieldsContainerFields);
 
-            EditorStyles.foldoutHeader.StartEdit();
-            EditorStyles.foldoutHeader.padding.left = 15;
-            EditorStyles.foldoutHeader.fontStyle    = FontStyle.Normal;
+            EditorStyles.foldoutHeader.StartEdit(x =>
+            {
+                x.padding.left = 15;
+                x.fontStyle    = FontStyle.Normal;
+            });
 
-            EditorStyles.foldout.StartEdit();
-            EditorStyles.foldout.padding = new RectOffset(15, 0, 0, 0);
+            EditorStyles.foldout.StartEdit(x => { x.padding = new RectOffset(15, 0, 0, 0); });
 
-            foreach (var field in fields)
+            foreach (var field in data.fields)
             {
                 var drawTarget = property.FindPropertyRelative(field.Name);
 
@@ -225,11 +177,11 @@ namespace FiberFramework.Editor
         }
 
 
-        private void DrawPropertyBlockHeader(object targetForCopyPaste, object targetForReset, object targetForEdit, string title)
+        private void DrawPropertyBlockHeader(BlockData data)
         {
             EditorGUILayout.BeginHorizontal(getStyleSheets.fieldsContainerHeader);
 
-            EditorGUILayout.LabelField(title, getStyleSheets.fieldsContainerTitle);
+            EditorGUILayout.LabelField(data.displayName, getStyleSheets.fieldsContainerTitle);
 
             var rect = EditorGUILayout.BeginHorizontal(GUILayout.Width(20));
 
@@ -237,22 +189,133 @@ namespace FiberFramework.Editor
 
             if (!Application.isPlaying && GUILayout.Button(new GUIContent(getStyleSheets.icon_menu), getStyleSheets.contextMenuButton))
             {
-                PopupWindow.Show(rect, new FiberObjectEditorContextMenu(targetForCopyPaste, targetForReset, targetForEdit, _fiberObject));
+                PopupWindow.Show(rect, new FiberObjectEditorContextMenu(data.targetObjectToCopy, data.targetObjectToReset, data.targetObjectToEdit, _fiberObject));
             }
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
         }
 
-        private class DrawFieldsOptions
+
+        private void FillData()
         {
-            public string rootPropertyName;
-            public string headerTitle;
-            public object contextMenuCopyTarget;
-            public object contextMenuResetTarget;
-            public object contextMenuEditTarget;
-            public Type   infoSource;
-            public Type   rootPropertyType;
+            _controllerData = FillControllerData();
+            _modelData      = FillModelData();
+            _viewData       = FillViewData();
+        }
+
+
+        private BlockData FillModelData()
+        {
+            var type         = _fiberObject.GetModelType;
+            var targetObject = FiberEditorTools.GetFieldValue(_fiberObject, _modelFieldName);
+
+            var data = new BlockData
+            {
+                targetField         = _modelFieldName,
+                targetObject        = targetObject,
+                targetType          = type,
+                targetObjectToEdit  = targetObject,
+                targetObjectToCopy  = targetObject,
+                targetObjectToReset = targetObject,
+                handlers            = BuildHandlersString(type),
+                displayName         = "Model",
+                fields              = FiberEditorTools.GetFields(type)
+            };
+
+            return data;
+        }
+
+
+        private BlockData FillViewData()
+        {
+            var type         = _fiberObject.GetViewType;
+            var targetObject = FiberEditorTools.GetFieldValue(_fiberObject, _viewFieldName);
+
+            var data = new BlockData
+            {
+                targetField         = _viewFieldName,
+                targetObject        = targetObject,
+                targetType          = type,
+                targetObjectToEdit  = targetObject,
+                targetObjectToCopy  = targetObject,
+                targetObjectToReset = targetObject,
+                handlers            = BuildHandlersString(type),
+                displayName         = "View",
+                fields              = FiberEditorTools.GetFields(type)
+            };
+
+            return data;
+        }
+
+
+        private BlockData FillControllerData()
+        {
+            var type         = _fiberObject.GetControllerType;
+            var fieldsSource = typeof(FiberControllerConfigurations);
+            var config       = FiberEditorTools.GetFieldValue(_fiberObject, _configurationsFieldName);
+            var controller   = FiberEditorTools.GetFieldValue(_fiberObject, _controllerFieldName);
+
+            var data = new BlockData
+            {
+                targetField         = _configurationsFieldName,
+                targetObject        = config,
+                targetType          = fieldsSource,
+                targetObjectToEdit  = controller,
+                targetObjectToCopy  = controller,
+                targetObjectToReset = config,
+                handlers            = BuildHandlersString(type),
+                displayName         = "Controller",
+                fields              = FiberEditorTools.GetFields(fieldsSource)
+            };
+
+            FiberEditorTools.TryGetDescription(type, out data.information);
+
+            return data;
+        }
+
+
+        private string BuildHandlersString(Type type)
+        {
+            var handlersLine = "";
+            var handlers     = FiberEditorTools.GetHandlers(type);
+
+            if (handlers.Length == 0)
+            {
+                return "No Handlers";
+            }
+
+            foreach (var handler in handlers)
+            {
+                var targetName = handler.Name;
+
+                targetName = targetName.Replace('I', default);
+                targetName = targetName.Replace("Handler", default);
+
+                handlersLine += targetName;
+
+                if (handler != handlers.Last())
+                {
+                    handlersLine += ", ";
+                }
+            }
+
+            return handlersLine;
+        }
+
+
+        private class BlockData
+        {
+            public string                 targetField;
+            public object                 targetObject;
+            public object                 targetObjectToEdit;
+            public object                 targetObjectToCopy;
+            public object                 targetObjectToReset;
+            public Type                   targetType;
+            public string                 information;
+            public string                 handlers;
+            public string                 displayName;
+            public IEnumerable<FieldInfo> fields;
         }
     }
 }

@@ -42,12 +42,13 @@ namespace FiberFramework.Editor
 
         private static readonly Dictionary<GUIStyle, GUIStyle> _styles = new Dictionary<GUIStyle, GUIStyle>();
 
-        public static void StartEdit(this GUIStyle style)
+        public static void StartEdit(this GUIStyle style, Action<GUIStyle> operation)
         {
             style.StopEdit();
             try
             {
                 _styles.Add(style, new GUIStyle(style));
+                operation?.Invoke(style);
             }
             catch (Exception e)
             {
