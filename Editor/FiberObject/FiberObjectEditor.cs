@@ -4,6 +4,8 @@ using System;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UIElements;
+using PopupWindow = UnityEditor.PopupWindow;
 
 namespace FiberFramework.Editor
 {
@@ -14,7 +16,7 @@ namespace FiberFramework.Editor
         private       FiberObject                        _fiberObject;
         private       int                                _currentIndex;
         private       FiberObjectEditorStyleSheets       _styleSheets;
-        private       Rect                               _contentRect;
+        private       Rect                               _contentRect = Rect.zero;
         private       BlockData                          _controllerData;
         private       BlockData                          _modelData;
         private       BlockData                          _viewData;
@@ -23,7 +25,10 @@ namespace FiberFramework.Editor
         private const string                             _modelFieldName          = "_model";
         private const string                             _viewFieldName           = "_view";
         private       FiberObjectEditorStyleSheets       getStyleSheets => _styleSheets ??= new FiberObjectEditorStyleSheets();
-
+        private       float                              _fullWidth     => _inspectorContainer.contentContainer.worldBound.width;
+        private       ScrollView                         _inspectorContainer;
+        private       EditorWindow                       _inspector;
+       
 
         private void OnEnable()
         {
@@ -31,23 +36,43 @@ namespace FiberFramework.Editor
             _controllers  = FiberEditorTools.GetControllerList();
             _currentIndex = _fiberObject!.HasController ? _controllers.types.IndexOf(_fiberObject.GetControllerType) : 0;
             FillData();
+            var windowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
+            _inspector = EditorWindow.GetWindow(windowType);
+        }
+
+
+        private void TryGetRoot()
+        {
+            try
+            {
+                _inspectorContainer = (ScrollView)_inspector.rootVisualElement.ElementAt(1).ElementAt(1);
+            }
+            catch (Exception e)
+            {
+                // ignored
+            }
         }
 
 
         public override void OnInspectorGUI()
         {
-            _contentRect.width = Screen.width;
+            if (_inspectorContainer != null)
+            {
+                _contentRect.width = _fullWidth;
 
-            EditorGUILayout.BeginVertical(new GUIStyle { fixedHeight = _contentRect.height - 12 });
+                EditorGUILayout.BeginVertical(new GUIStyle { fixedHeight = _contentRect.height - 12 });
 
-            GUILayout.BeginArea(_contentRect);
-            DrawContent();
-            GUILayout.EndArea();
+                GUILayout.BeginArea(_contentRect);
+                DrawContent();
+                GUILayout.EndArea();
 
-            EditorGUILayout.Space(0);
-            EditorGUILayout.EndVertical();
-
-            Repaint();
+                EditorGUILayout.Space(0);
+                EditorGUILayout.EndVertical();
+            }
+            else
+            {
+                TryGetRoot();
+            }
         }
 
 
@@ -75,9 +100,9 @@ namespace FiberFramework.Editor
 
         private void DrawController()
         {
-            if (GUILayout.Button(_controllers.names[_currentIndex], getStyleSheets.controllerSelector, GUILayout.Width(Screen.width)))
+            if (GUILayout.Button(_controllers.names[_currentIndex], getStyleSheets.controllerSelector, GUILayout.Width(_fullWidth)))
             {
-                PopupWindow.Show(new Rect(0, 0, 0, 40), new FiberObjectEditorListMenu(Screen.width, _controllers, OnSelectController, getStyleSheets));
+                PopupWindow.Show(new Rect(0, 0, 0, 40), new FiberObjectEditorListMenu(_fullWidth, _controllers, OnSelectController, getStyleSheets));
             }
 
             if (_controllerData.information != default)
@@ -134,7 +159,7 @@ namespace FiberFramework.Editor
         {
             EditorGUILayout.BeginHorizontal(getStyleSheets.infoBlock);
 
-            var width = (_contentRect.width / 2) - 13;
+            var width = (_fullWidth / 2f) - 13f;
 
             EditorGUILayout.LabelField($"<color=grey>{data.targetObjectToEdit.GetType().Name}</color>", getStyleSheets.infoBlockLeftLine, GUILayout.Width(width));
             EditorGUILayout.LabelField($"<color=#89D679>{data.handlers}</color>", getStyleSheets.infoBlockRightLine, GUILayout.Width(width));
