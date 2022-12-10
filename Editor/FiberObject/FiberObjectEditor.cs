@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor.UIElements;
 using PopupWindow = UnityEditor.PopupWindow;
 
 namespace FiberFramework.Editor
@@ -37,7 +38,7 @@ namespace FiberFramework.Editor
             _currentIndex = _fiberObject!.HasController ? _controllers.types.IndexOf(_fiberObject.GetControllerType) : 0;
             FillData();
             var windowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
-            _inspector = EditorWindow.GetWindow(windowType);
+            _inspector = Resources.FindObjectsOfTypeAll(windowType)[0] as EditorWindow;
         }
 
 
