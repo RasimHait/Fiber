@@ -29,7 +29,7 @@ namespace FiberFramework.Editor
         private       float                              _fullWidth     => _inspectorContainer.contentContainer.worldBound.width;
         private       ScrollView                         _inspectorContainer;
         private       EditorWindow                       _inspector;
-       
+
 
         private void OnEnable()
         {
@@ -45,8 +45,8 @@ namespace FiberFramework.Editor
             try
             {
                 var windowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
-                _inspector          = Resources.FindObjectsOfTypeAll(windowType)[0] as EditorWindow;
-                
+                _inspector = Resources.FindObjectsOfTypeAll(windowType)[0] as EditorWindow;
+
                 if (_inspector)
                 {
                     _inspectorContainer = (ScrollView)_inspector.rootVisualElement.ElementAt(1).ElementAt(1);
@@ -110,7 +110,7 @@ namespace FiberFramework.Editor
                 PopupWindow.Show(new Rect(0, 0, 0, 40), new FiberObjectEditorListMenu(_fullWidth, _controllers, OnSelectController, getStyleSheets));
             }
 
-            if (_controllerData.information != default)
+            if (_fiberObject.HasController && !string.IsNullOrEmpty(_controllerData.information))
             {
                 EditorGUILayout.LabelField(_controllerData.information, getStyleSheets.descriptionTextBox);
             }
@@ -124,17 +124,19 @@ namespace FiberFramework.Editor
             if (controllerID == 0)
             {
                 _fiberObject.Reset();
-
-                EditorUtility.SetDirty(target);
-                return;
             }
+            else
+            {
+                var targetType = _controllers.types[controllerID];
+                _fiberObject.Construct(targetType);
 
-            var targetType = _controllers.types[controllerID];
-            _fiberObject.Construct(targetType);
+                _controllerData = _modelData = _viewData = null;
+            }
 
             FillData();
 
-            EditorUtility.SetDirty(target);
+            EditorUtility.SetDirty(_fiberObject);
+
             GC.Collect();
         }
 
@@ -229,14 +231,19 @@ namespace FiberFramework.Editor
 
         private void FillData()
         {
-            _controllerData = FillControllerData();
-            _modelData      = FillModelData();
-            _viewData       = FillViewData();
+            if (_fiberObject.HasController)
+            {
+                _controllerData = FillControllerData();
+                _modelData      = FillModelData();
+                _viewData       = FillViewData();
+            }
         }
 
 
         private BlockData FillModelData()
         {
+            if (!_fiberObject.HasModel) return null;
+
             var type         = _fiberObject.GetModelType;
             var targetObject = FiberEditorTools.GetFieldValue(_fiberObject, _modelFieldName);
 
@@ -259,6 +266,8 @@ namespace FiberFramework.Editor
 
         private BlockData FillViewData()
         {
+            if (!_fiberObject.HasView) return null;
+
             var type         = _fiberObject.GetViewType;
             var targetObject = FiberEditorTools.GetFieldValue(_fiberObject, _viewFieldName);
 
