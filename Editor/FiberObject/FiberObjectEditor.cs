@@ -37,8 +37,6 @@ namespace FiberFramework.Editor
             _controllers  = FiberEditorTools.GetControllerList();
             _currentIndex = _fiberObject!.HasController ? _controllers.types.IndexOf(_fiberObject.GetControllerType) : 0;
             FillData();
-            var windowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
-            _inspector = Resources.FindObjectsOfTypeAll(windowType)[0] as EditorWindow;
         }
 
 
@@ -46,7 +44,13 @@ namespace FiberFramework.Editor
         {
             try
             {
-                _inspectorContainer = (ScrollView)_inspector.rootVisualElement.ElementAt(1).ElementAt(1);
+                var windowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
+                _inspector          = Resources.FindObjectsOfTypeAll(windowType)[0] as EditorWindow;
+                
+                if (_inspector)
+                {
+                    _inspectorContainer = (ScrollView)_inspector.rootVisualElement.ElementAt(1).ElementAt(1);
+                }
             }
             catch (Exception e)
             {
