@@ -8,7 +8,7 @@ namespace FiberFramework
     [Serializable]
     public abstract class FiberView
     {
-        [SerializeReference]
+        [SerializeReference, HideInInspector]
         private MonoBehaviour _rootObject;
         protected MonoBehaviour root => _rootObject;
         internal  Action        OnDestroy;

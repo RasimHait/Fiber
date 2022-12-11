@@ -5,13 +5,21 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEditor.UIElements;
 using PopupWindow = UnityEditor.PopupWindow;
+
+#if ODIN_INSPECTOR
+using Sirenix;
+using Sirenix.OdinInspector.Editor;
+#endif
 
 namespace FiberFramework.Editor
 {
     [CustomEditor(typeof(FiberObject))]
+#if ODIN_INSPECTOR
+    public class FiberObjectEditor : OdinEditor
+#else
     public class FiberObjectEditor : UnityEditor.Editor
+#endif
     {
         private       (List<Type> types, string[] names) _controllers;
         private       FiberObject                        _fiberObject;
@@ -73,6 +81,8 @@ namespace FiberFramework.Editor
 
                 EditorGUILayout.Space(0);
                 EditorGUILayout.EndVertical();
+
+                Repaint();
             }
             else
             {
@@ -184,10 +194,22 @@ namespace FiberFramework.Editor
 
             EditorGUILayout.BeginVertical(getStyleSheets.fieldsContainerFields);
 
+#if ODIN_INSPECTOR
+            Tree.BeginDraw(true);
+            
+            var drawTarget = Tree.GetPropertyAtPath(data.targetField);
+
+            foreach (var child in drawTarget.Children)
+            {
+                child?.Draw();
+            }
+
+            Tree.EndDraw();
+#else
             EditorStyles.foldoutHeader.StartEdit(x =>
             {
                 x.padding.left = 15;
-                x.fontStyle    = FontStyle.Normal;
+                x.fontStyle = FontStyle.Normal;
             });
 
             EditorStyles.foldout.StartEdit(x => { x.padding = new RectOffset(15, 0, 0, 0); });
@@ -204,7 +226,7 @@ namespace FiberFramework.Editor
 
             EditorStyles.foldout.StopEdit();
             EditorStyles.foldoutHeader.StopEdit();
-
+#endif
             EditorGUILayout.EndVertical();
         }
 
